@@ -1,0 +1,30 @@
+name: Weekly review
+
+on:
+  schedule:
+    # Sunday 18:00 UTC = 20:00 CEST / 19:00 CET
+    - cron: "0 18 * * 0"
+  workflow_dispatch:
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install --quiet requests
+
+      - name: Build review
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_DB_ID: ${{ secrets.NOTION_DB_ID }}
+          NOTION_REVIEW_PAGE_ID: ${{ secrets.NOTION_REVIEW_PAGE_ID }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          REVIEW_TZ: Europe/Zurich
+          MIN_SESSIONS: "20"
+        run: python scripts/weekly_review.py
