@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#121714">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Focus Log</title>
+<style>
+  :root {
+    --bg: #121714;
+    --card: #1a2820;
+    --card-2: #15201a;
+    --line: #2b473a;
+    --line-soft: #223a2e;
+    --accent: #4a9e68;
+    --accent-hover: #5ab878;
+    --text: #e6efe9;
+    --dim: #8fb5a0;
+    --mute: #5f8a72;
+    --fill: #6abf8a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, "Inter", "Segoe UI", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent; }
+  button:focus-visible { outline: 2px solid var(--fill); outline-offset: 2px; }
+
+  .wrap { min-height: 100vh; min-height: 100dvh; display: flex; align-items: center; justify-content: center; padding: 1.5rem 1rem; }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 18px;
+    padding: 1.6rem 1.5rem 1.4rem; width: 100%; max-width: 400px; text-align: center;
+    transition: box-shadow .4s;
+  }
+  .card.pulse { box-shadow: 0 0 0 4px rgba(106,191,138,.45); }
+
+  .tabs { display: flex; gap: 6px; background: var(--card-2); border-radius: 12px; padding: 5px; margin-bottom: 1.4rem; }
+  .tab { flex: 1; padding: 8px 4px; font-size: 14px; font-weight: 500; border: none; border-radius: 9px; cursor: pointer; background: transparent; color: var(--mute); transition: background .15s, color .15s; }
+  .tab.active { background: var(--line); color: #fff; }
+
+  .durations { display: flex; gap: 8px; justify-content: center; }
+  .dur { padding: 8px 0; flex: 1; font-size: 14px; font-weight: 500; border: 1px solid var(--line); border-radius: 9px; cursor: pointer; background: transparent; color: var(--mute); transition: background .15s, color .15s; }
+  .dur.active { background: var(--line); color: #d0ead9; }
+  .dur:hover:not(.active) { background: var(--card-2); color: var(--dim); }
+
+  .display { margin: 2rem 0 1.4rem; }
+  .label { font-size: 13px; color: var(--dim); margin-bottom: .3rem; }
+  .time { font-size: 76px; font-weight: 300; letter-spacing: -2px; color: #fff; font-variant-numeric: tabular-nums; line-height: 1; }
+  .bar { height: 3px; background: var(--card-2); border-radius: 2px; margin-bottom: 1.6rem; overflow: hidden; }
+  .bar > div { height: 100%; border-radius: 2px; background: var(--fill); transition: width .25s linear; }
+
+  .controls { display: flex; align-items: center; justify-content: center; gap: 12px; }
+  .main { padding: 13px 0; flex: 1; max-width: 200px; font-size: 15px; font-weight: 500; border: none; border-radius: 11px; cursor: pointer; background: var(--accent); color: #fff; transition: background .15s; }
+  .main:hover { background: var(--accent-hover); }
+  .icon { width: 44px; height: 44px; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; background: transparent; color: var(--dim); font-size: 18px; display: flex; align-items: center; justify-content: center; transition: background .15s, color .15s; }
+  .icon:hover { background: var(--card-2); color: #d0ead9; }
+  .icon[hidden] { display: none; }
+
+  .end { margin-top: 14px; padding: 9px 18px; font-size: 13px; border: 1px solid var(--line); border-radius: 9px; cursor: pointer; background: transparent; color: var(--dim); transition: background .15s, color .15s; }
+  .end:hover { background: var(--card-2); color: #d0ead9; }
+  .end[hidden] { display: none; }
+
+  .thought { display: flex; gap: 8px; margin-top: 1.4rem; }
+  .thought input { flex: 1; background: var(--card-2); border: 1px solid var(--line-soft); border-radius: 9px; color: var(--text); font-size: 14px; padding: 10px 12px; outline: none; font-family: inherit; }
+  .thought input::placeholder { color: var(--mute); }
+  .thought input:focus { border-color: var(--accent); }
+  .thought button { padding: 0 14px; font-size: 14px; border: 1px solid var(--line); border-radius: 9px; cursor: pointer; background: transparent; color: var(--dim); }
+  .thought button:hover { background: var(--card-2); color: #d0ead9; }
+  .thoughts-link { margin-top: 8px; font-size: 13px; color: var(--mute); background: none; border: none; cursor: pointer; padding: 4px 8px; }
+  .thoughts-link:hover { color: var(--dim); }
+  .thoughts-link[hidden] { display: none; }
+
+  .th { display: none; position: fixed; inset: 0; background: rgba(18,23,20,.92); z-index: 90; align-items: center; justify-content: center; padding: 1.5rem 1rem; }
+  .th.open { display: flex; }
+  .th-card { width: 100%; max-width: 400px; max-height: 80vh; background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 1.4rem 1.3rem; display: flex; flex-direction: column; }
+  .th h3 { font-size: 16px; font-weight: 500; margin-bottom: 1rem; color: #fff; }
+  .th ul { list-style: none; overflow-y: auto; flex: 1; margin-bottom: 1rem; }
+  .th li { padding: 10px 0; border-bottom: 1px solid var(--line-soft); font-size: 15px; line-height: 1.45; display: flex; gap: 10px; justify-content: space-between; align-items: flex-start; }
+  .th li span { flex: 1; word-break: break-word; }
+  .th li small { color: var(--mute); font-size: 12px; white-space: nowrap; }
+  .th li button { background: none; border: none; color: var(--mute); cursor: pointer; font-size: 16px; padding: 0 2px; }
+  .th li button:hover { color: #e6efe9; }
+  .th-actions { display: flex; gap: 10px; }
+  .th-actions button { flex: 1; padding: 11px; font-size: 14px; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; background: transparent; color: var(--dim); }
+  .th-actions button:hover { background: var(--card-2); color: #d0ead9; }
+
+  .today { margin-top: 1.5rem; padding-top: 1.1rem; border-top: 1px solid var(--line-soft); font-size: 13px; color: var(--mute); }
+  .foot { margin-top: .9rem; font-size: 11px; color: #3f6b52; cursor: pointer; user-select: none; }
+
+  /* Check-in */
+  .ci { display: none; position: fixed; inset: 0; background: var(--bg); z-index: 100; align-items: center; justify-content: center; padding: 1.5rem 1rem; }
+  .ci.open { display: flex; }
+  .ci-card { width: 100%; max-width: 400px; text-align: center; }
+  .dots { display: flex; gap: 6px; justify-content: center; margin-bottom: 2.2rem; }
+  .dots i { width: 22px; height: 3px; border-radius: 2px; background: var(--line-soft); }
+  .dots i.on { background: var(--fill); }
+  .ci h2 { font-size: 22px; font-weight: 500; line-height: 1.3; margin-bottom: .5rem; color: #fff; }
+  .ci p { font-size: 14px; color: var(--dim); line-height: 1.5; margin-bottom: 1.8rem; }
+  .opts { display: flex; flex-direction: column; gap: 10px; margin-bottom: 1.6rem; }
+  .opt { padding: 15px; font-size: 16px; font-weight: 500; border: 1px solid var(--line); border-radius: 12px; cursor: pointer; background: var(--card); color: var(--text); transition: background .12s, border-color .12s; }
+  .opt:hover { background: var(--line-soft); border-color: var(--accent); }
+  .scale { display: flex; gap: 10px; justify-content: center; margin-bottom: 1.6rem; }
+  .scale .opt { width: 56px; height: 56px; padding: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 17px; }
+  .scale-hint { display: flex; justify-content: space-between; max-width: 320px; margin: -1rem auto 1.6rem; font-size: 12px; color: var(--mute); }
+  .ci textarea { width: 100%; height: 110px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; color: var(--text); font-size: 15px; padding: 12px; resize: none; font-family: inherit; outline: none; margin-bottom: 1rem; }
+  .ci textarea::placeholder { color: var(--mute); }
+  .ci textarea:focus { border-color: var(--accent); }
+  .primary { width: 100%; padding: 15px; font-size: 16px; font-weight: 500; border: none; border-radius: 12px; cursor: pointer; background: var(--accent); color: #fff; margin-bottom: 1rem; transition: background .15s; }
+  .primary:hover { background: var(--accent-hover); }
+  .skip { background: none; border: none; font-size: 14px; color: var(--mute); cursor: pointer; padding: 8px 14px; }
+  .skip:hover { color: var(--dim); }
+
+  .toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(20px); background: #223a2e; color: #d0ead9; border: 1px solid var(--line); padding: 11px 18px; border-radius: 10px; font-size: 14px; opacity: 0; transition: opacity .25s, transform .25s; pointer-events: none; z-index: 200; max-width: 90vw; text-align: center; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .flash { position: fixed; inset: 0; background: #ffffff; z-index: 300; pointer-events: none; opacity: 0; }
+  .flash.on { opacity: 1; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="card" id="card">
+    <div class="tabs">
+      <button class="tab active" id="tab-focus" onclick="switchMode('focus')">Focus</button>
+      <button class="tab" id="tab-break" onclick="switchMode('break')">Break</button>
+    </div>
+
+    <div class="durations" id="dur-focus">
+      <button class="dur active" onclick="setDuration(25, this)">25</button>
+      <button class="dur" onclick="setDuration(30, this)">30</button>
+      <button class="dur" onclick="setDuration(45, this)">45</button>
+      <button class="dur" onclick="setDuration(60, this)">60</button>
+    </div>
+    <div class="durations" id="dur-break" style="display:none">
+      <button class="dur active" onclick="setDuration(5, this)">5</button>
+      <button class="dur" onclick="setDuration(10, this)">10</button>
+      <button class="dur" onclick="setDuration(15, this)">15</button>
+    </div>
+
+    <div class="display">
+      <div class="label" id="label">Focus</div>
+      <div class="time" id="time">25:00</div>
+    </div>
+    <div class="bar"><div id="bar" style="width:100%"></div></div>
+
+    <div class="controls">
+      <button class="icon" onclick="resetTimer()" title="Reset">↺</button>
+      <button class="main" id="main" onclick="toggleTimer()">Start</button>
+      <button class="icon" id="skip-break" onclick="skipBreak()" title="Skip break" hidden>→</button>
+    </div>
+    <button class="end" id="end" onclick="endEarly()" hidden>End session and log it</button>
+
+    <form class="thought" onsubmit="addThought(event)">
+      <input id="thought-in" placeholder="Park a thought, keep going" autocomplete="off" maxlength="300">
+      <button type="submit">Park</button>
+    </form>
+    <button class="thoughts-link" id="thoughts-link" onclick="openThoughts()" hidden></button>
+
+    <div class="today" id="today">Nothing logged yet today</div>
+    <div class="foot" onclick="resetToken()">Focus Log</div>
+  </div>
+</div>
+
+<div class="th" id="th" onclick="if(event.target===this)closeThoughts()">
+  <div class="th-card">
+    <h3>Parked thoughts</h3>
+    <ul id="th-list"></ul>
+    <div class="th-actions">
+      <button onclick="clearThoughts()">Clear all</button>
+      <button onclick="closeThoughts()">Close</button>
+    </div>
+  </div>
+</div>
+<div class="ci" id="ci"><div class="ci-card" id="ci-card"></div></div>
+<div class="toast" id="toast"></div>
+<div class="flash" id="flash"></div>
+
+<script>
+/* ---------- config ---------- */
+const GITHUB_USER = "Alexfionn";
+const GITHUB_REPO = "focus-log";
+const MIN_LOG_SECONDS = 180;
+
+const FOCUS_DEFAULT = 25, BREAK_DEFAULT = 5;
+const KEY_QUEUE = "focuslog-queue", KEY_TOKEN = "focuslog-gh-token",
+      KEY_TODAY = "focuslog-today", KEY_SESSION = "focuslog-session", KEY_THOUGHTS = "focuslog-thoughts";
+
+/* ---------- timer state ---------- */
+let mode = "focus", total = FOCUS_DEFAULT * 60;
+let accumulated = 0, runStart = null, running = false, firstStart = null;
+let ticker = null, audioCtx = null, wakeLock = null;
+
+const $ = id => document.getElementById(id);
+
+function elapsed() { return accumulated + (running ? (Date.now() - runStart) / 1000 : 0); }
+function remaining() { return Math.max(0, total - elapsed()); }
+function fmt(s) { s = Math.ceil(s); return String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0"); }
+
+function render() {
+  $("time").textContent = fmt(remaining());
+  $("bar").style.width = (remaining() / total * 100) + "%";
+  $("main").textContent = running ? "Pause" : (accumulated > 0 ? "Resume" : "Start");
+  const started = accumulated > 0 || running;
+  $("end").hidden = !(mode === "focus" && started);
+  $("skip-break").hidden = mode !== "break";
+}
+
+function startTimer() {
+  if (running) return;
+  if (!firstStart) firstStart = new Date();
+  runStart = Date.now(); running = true;
+  ticker = setInterval(tick, 250);
+  ensureAudio(); requestWake(); persist(); render();
+}
+function pauseTimer() {
+  if (!running) return;
+  accumulated += (Date.now() - runStart) / 1000; running = false;
+  clearInterval(ticker); releaseWake(); persist(); render();
+}
+function toggleTimer() { running ? pauseTimer() : startTimer(); }
+
+function stopAll() {
+  if (running) accumulated += (Date.now() - runStart) / 1000;
+  running = false; clearInterval(ticker); releaseWake();
+}
+function clearSession() {
+  accumulated = 0; runStart = null; firstStart = null; running = false;
+  clearInterval(ticker); releaseWake(); localStorage.removeItem(KEY_SESSION);
+}
+function resetTimer() { clearSession(); render(); }
+
+function tick() {
+  render();
+  if (remaining() <= 0) complete();
+}
+
+function complete() {
+  stopAll();
+  notify();
+  if (mode === "focus") openCheckin(total, true);
+  else { clearSession(); switchMode("focus"); toast("Break over"); }
+}
+
+function endEarly() {
+  const secs = Math.round(elapsed());
+  stopAll();
+  if (secs < MIN_LOG_SECONDS) {
+    clearSession(); render();
+    toast("Under 3 minutes, not logged");
+    return;
+  }
+  openCheckin(secs, false);
+}
+
+function skipBreak() { clearSession(); switchMode("focus"); }
+
+function setDuration(min, btn) {
+  if (accumulated > 0 || running) { clearSession(); }
+  total = min * 60;
+  btn.parentElement.querySelectorAll(".dur").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  render();
+}
+
+function switchMode(m) {
+  if (m === mode) return;
+  clearSession(); mode = m;
+  $("tab-focus").classList.toggle("active", m === "focus");
+  $("tab-break").classList.toggle("active", m === "break");
+  $("dur-focus").style.display = m === "focus" ? "" : "none";
+  $("dur-break").style.display = m === "break" ? "" : "none";
+  $("label").textContent = m === "focus" ? "Focus" : "Break";
+  const active = document.querySelector("#dur-" + m + " .dur.active");
+  total = parseInt(active.textContent, 10) * 60;
+  render();
+}
+
+/* persist a running session across reloads */
+function persist() {
+  localStorage.setItem(KEY_SESSION, JSON.stringify({
+    mode, total, accumulated, runStart, running, firstStart: firstStart ? firstStart.getTime() : null
+  }));
+}
+function restore() {
+  const raw = localStorage.getItem(KEY_SESSION);
+  if (!raw) return;
+  try {
+    const s = JSON.parse(raw);
+    if (s.mode !== mode) switchMode(s.mode);
+    total = s.total; accumulated = s.accumulated; firstStart = s.firstStart ? new Date(s.firstStart) : null;
+    const btn = [...document.querySelectorAll("#dur-" + mode + " .dur")].find(b => parseInt(b.textContent, 10) * 60 === total);
+    if (btn) { btn.parentElement.querySelectorAll(".dur").forEach(b => b.classList.remove("active")); btn.classList.add("active"); }
+    if (s.running) {
+      runStart = s.runStart; running = true;
+      if (elapsed() >= total) { running = false; accumulated = total; complete(); return; }
+      ticker = setInterval(tick, 250); requestWake();
+    }
+    render();
+  } catch (e) { localStorage.removeItem(KEY_SESSION); }
+}
+
+/* ---------- notifications ---------- */
+function ensureAudio() {
+  try { audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)(); if (audioCtx.state === "suspended") audioCtx.resume(); } catch (e) {}
+}
+function notify() {
+  try {
+    ensureAudio();
+    const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.frequency.value = 660; osc.type = "sine";
+    gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1);
+    osc.start(); osc.stop(audioCtx.currentTime + 1);
+  } catch (e) {}
+  if (navigator.vibrate) navigator.vibrate([180, 90, 180]);
+  const card = $("card"); card.classList.add("pulse"); setTimeout(() => card.classList.remove("pulse"), 1200);
+  flashScreen(4);
+  let i = 0; const t = setInterval(() => { document.title = i % 2 ? "Focus Log" : "Done"; if (++i > 6) { clearInterval(t); document.title = "Focus Log"; } }, 600);
+}
+function flashScreen(times) {
+  const f = $("flash"); let n = 0;
+  const step = () => {
+    f.classList.toggle("on");
+    if (++n < times * 2) setTimeout(step, 300); else f.classList.remove("on");
+  };
+  step();
+}
+async function requestWake() { try { if ("wakeLock" in navigator) wakeLock = await navigator.wakeLock.request("screen"); } catch (e) {} }
+function releaseWake() { try { wakeLock && wakeLock.release(); } catch (e) {} wakeLock = null; }
+document.addEventListener("visibilitychange", () => { if (!document.hidden) { render(); if (running) requestWake(); } });
+
+/* ---------- check-in ---------- */
+const QUESTIONS = [
+  { key: "focus",       q: "How was your focus?",       type: "choice", opts: [["good", "Good"], ["mixed", "Mixed"], ["distracted", "Distracted"]] },
+  { key: "energy",      q: "Energy right now?",         type: "scale" },
+  { key: "starting",    q: "Getting started was…",      type: "choice", opts: [["easy", "Easy"], ["okay", "Okay"], ["hard", "Hard"]] },
+  { key: "environment", q: "How was the environment?",  type: "choice", opts: [["quiet", "Quiet"], ["okay", "Okay"], ["noisy", "Noisy"]] },
+  { key: "note",        q: "Anything worth noting?",    type: "text" },
+];
+let session = null, step = 0;
+
+function uuid() {
+  if (crypto.randomUUID) return crypto.randomUUID();
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === "x" ? r : (r & 3 | 8)).toString(16); });
+}
+function isoLocal(d) {
+  const p = n => String(n).padStart(2, "0");
+  const off = -d.getTimezoneOffset(), sign = off >= 0 ? "+" : "-", a = Math.abs(off);
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}${sign}${p(a / 60 | 0)}:${p(a % 60)}`;
+}
+
+function openCheckin(secs, completed) {
+  session = {
+    id: uuid(),
+    start: isoLocal(firstStart || new Date(Date.now() - secs * 1000)),
+    minutes: Math.max(1, Math.round(secs / 60)),
+    completed,
+    tz: Intl.DateTimeFormat().resolvedOptions().timeZone
+  };
+  step = 0;
+  $("ci").classList.add("open");
+  renderStep();
+}
+
+function renderStep() {
+  const card = $("ci-card");
+  const dots = `<div class="dots">${QUESTIONS.map((_, i) => `<i class="${i < step ? "on" : ""}"></i>`).join("")}</div>`;
+  if (step === 0) {
+    card.innerHTML = `${dots}
+      <h2>${session.minutes} minutes done.</h2>
+      <p>${session.completed ? "Full session." : "Ended early, still counts."} Four quick taps, then you're free.</p>
+      <button class="primary" onclick="next()">Continue</button>
+      <button class="skip" onclick="finishCheckin()">Skip all, just log the time</button>`;
+    return;
+  }
+  const q = QUESTIONS[step - 1];
+  let body = "";
+  if (q.type === "choice") {
+    body = `<div class="opts">${q.opts.map(([v, l]) => `<button class="opt" onclick="answer('${q.key}','${v}')">${l}</button>`).join("")}</div>`;
+  } else if (q.type === "scale") {
+    body = `<div class="scale">${[1, 2, 3, 4, 5].map(n => `<button class="opt" onclick="answer('${q.key}',${n})">${n}</button>`).join("")}</div>
+            <div class="scale-hint"><span>drained</span><span>fresh</span></div>`;
+  } else {
+    body = `<textarea id="note" placeholder="Optional"></textarea>
+            <button class="primary" onclick="answer('note', document.getElementById('note').value.trim())">Save session</button>`;
+  }
+  card.innerHTML = `${dots}<h2>${q.q}</h2><p></p>${body}
+    <button class="skip" onclick="next()">${q.type === "text" ? "Save without a note" : "Skip this one"}</button>`;
+  if (q.type === "text") setTimeout(() => { const n = $("note"); n.focus(); n.addEventListener("keydown", e => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) answer("note", n.value.trim()); }); }, 50);
+}
+function answer(key, val) { if (val !== "" && val !== null) session[key] = val; next(); }
+function next() { step++; if (step > QUESTIONS.length) finishCheckin(); else renderStep(); }
+
+function finishCheckin() {
+  const s = session; session = null;
+  $("ci").classList.remove("open");
+  enqueue(s);
+  bumpToday(s.minutes);
+  clearSession();
+  if (s.completed) switchMode("break"); else render();
+  flushQueue();
+}
+
+/* ---------- parked thoughts (device only, never sent) ---------- */
+function readThoughts() { try { return JSON.parse(localStorage.getItem(KEY_THOUGHTS)) || []; } catch (e) { return []; } }
+function writeThoughts(t) { localStorage.setItem(KEY_THOUGHTS, JSON.stringify(t)); renderThoughtsLink(); }
+function addThought(e) {
+  e.preventDefault();
+  const inp = $("thought-in"), text = inp.value.trim();
+  if (!text) return;
+  const t = readThoughts(); t.push({ text, at: Date.now() }); writeThoughts(t);
+  inp.value = ""; inp.blur();
+  toast("Parked");
+}
+function renderThoughtsLink() {
+  const n = readThoughts().length, l = $("thoughts-link");
+  l.hidden = n === 0;
+  l.textContent = n === 1 ? "1 parked thought" : `${n} parked thoughts`;
+}
+function openThoughts() {
+  const list = $("th-list"), t = readThoughts();
+  list.innerHTML = t.map((x, i) => {
+    const d = new Date(x.at), when = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+    const safe = x.text.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+    return `<li><span>${safe}</span><small>${when}</small><button onclick="removeThought(${i})" title="Remove">×</button></li>`;
+  }).join("") || `<li><span style="color:var(--mute)">Nothing parked.</span></li>`;
+  $("th").classList.add("open");
+}
+function closeThoughts() { $("th").classList.remove("open"); }
+function removeThought(i) { const t = readThoughts(); t.splice(i, 1); writeThoughts(t); openThoughts(); }
+function clearThoughts() { if (!readThoughts().length || confirm("Clear all parked thoughts?")) { writeThoughts([]); closeThoughts(); } }
+
+/* ---------- today ---------- */
+function todayKey() { const d = new Date(); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; }
+function readToday() { try { const t = JSON.parse(localStorage.getItem(KEY_TODAY)); return t && t.date === todayKey() ? t : { date: todayKey(), sessions: 0, minutes: 0 }; } catch (e) { return { date: todayKey(), sessions: 0, minutes: 0 }; } }
+function bumpToday(min) { const t = readToday(); t.sessions++; t.minutes += min; localStorage.setItem(KEY_TODAY, JSON.stringify(t)); renderToday(); }
+function renderToday() {
+  const t = readToday();
+  $("today").textContent = t.sessions === 0 ? "Nothing logged yet today"
+    : `${t.sessions} ${t.sessions === 1 ? "session" : "sessions"}, ${t.minutes} min today`;
+}
+
+/* ---------- queue + delivery ---------- */
+function readQueue() { try { return JSON.parse(localStorage.getItem(KEY_QUEUE)) || []; } catch (e) { return []; } }
+function writeQueue(q) { localStorage.setItem(KEY_QUEUE, JSON.stringify(q)); }
+function enqueue(s) { const q = readQueue(); q.push(s); writeQueue(q); }
+
+function getToken() {
+  let t = localStorage.getItem(KEY_TOKEN);
+  if (!t) {
+    t = prompt("Paste your GitHub token (stored only on this device):");
+    if (t) { t = t.trim(); localStorage.setItem(KEY_TOKEN, t); }
+  }
+  return t;
+}
+function resetToken() {
+  if (confirm("Remove the saved GitHub token from this device?")) { localStorage.removeItem(KEY_TOKEN); toast("Token removed"); }
+}
+
+let flushing = false;
+async function flushQueue() {
+  if (flushing) return;
+  let q = readQueue();
+  if (q.length === 0) return;
+  if (!navigator.onLine) { toast(`Offline, ${q.length} queued`); return; }
+  const token = getToken();
+  if (!token) { toast(`No token, ${q.length} queued`); return; }
+  flushing = true;
+  let sent = 0;
+  try {
+    while (q.length) {
+      const item = q[0];
+      const r = await fetch(`https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/dispatches`, {
+        method: "POST",
+        headers: { "Authorization": "Bearer " + token, "Accept": "application/vnd.github+json", "Content-Type": "application/json" },
+        body: JSON.stringify({ event_type: "log_session", client_payload: item })
+      });
+      if (r.status === 204) { q.shift(); writeQueue(q); sent++; continue; }
+      if (r.status === 401 || r.status === 403) { localStorage.removeItem(KEY_TOKEN); toast("Token rejected, saved for retry"); break; }
+      if (r.status === 404) { toast("Repo not found, check config"); break; }
+      toast(`GitHub error ${r.status}, saved for retry`); break;
+    }
+  } catch (e) {
+    toast("Network error, saved for retry");
+  }
+  flushing = false;
+  if (sent) toast(sent === 1 ? "Logged to Notion" : `Logged ${sent} sessions`);
+}
+window.addEventListener("online", flushQueue);
+
+/* ---------- toast ---------- */
+let toastT = null;
+function toast(msg) {
+  const t = $("toast"); t.textContent = msg; t.classList.add("show");
+  clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("show"), 2600);
+}
+
+/* ---------- boot ---------- */
+document.addEventListener("keydown", e => {
+  if ($("ci").classList.contains("open") || $("th").classList.contains("open")) return;
+  if (e.target.tagName === "TEXTAREA" || e.target.tagName === "INPUT") return;
+  if (e.key === "Escape") closeThoughts();
+  if (e.code === "Space") { e.preventDefault(); toggleTimer(); }
+});
+renderToday();
+renderThoughtsLink();
+restore();
+render();
+flushQueue();
+</script>
+</body>
+</html>
