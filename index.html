@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#121714">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Focus Log</title>
+<style>
+  :root {
+    --bg: #121714; --card: #1a2820; --card-2: #15201a;
+    --line: #2b473a; --line-soft: #223a2e;
+    --accent: #4a9e68; --accent-hover: #5ab878;
+    --text: #e6efe9; --dim: #8fb5a0; --mute: #5f8a72; --fill: #6abf8a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, "Inter", "Segoe UI", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent; }
+  button:focus-visible { outline: 2px solid var(--fill); outline-offset: 2px; }
+  input, textarea { font-family: inherit; }
+
+  .wrap { min-height: 100vh; min-height: 100dvh; display: flex; align-items: center; justify-content: center; padding: 1.5rem 1rem; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 1.6rem 1.5rem 1.2rem; width: 100%; max-width: 400px; text-align: center; transition: box-shadow .4s; }
+  .card.pulse { box-shadow: 0 0 0 4px rgba(106,191,138,.45); }
+
+  .tabs { display: flex; gap: 6px; background: var(--card-2); border-radius: 12px; padding: 5px; margin-bottom: 1.4rem; }
+  .tab { flex: 1; padding: 8px 4px; font-size: 14px; font-weight: 500; border: none; border-radius: 9px; cursor: pointer; background: transparent; color: var(--mute); transition: background .15s, color .15s; }
+  .tab.active { background: var(--line); color: #fff; }
+
+  .durations { display: flex; gap: 8px; justify-content: center; }
+  .dur { padding: 8px 0; flex: 1; font-size: 14px; font-weight: 500; border: 1px solid var(--line); border-radius: 9px; cursor: pointer; background: transparent; color: var(--mute); transition: background .15s, color .15s; }
+  .dur.active { background: var(--line); color: #d0ead9; }
+  .dur:hover:not(.active) { background: var(--card-2); color: var(--dim); }
+
+  .display { margin: 2rem 0 1.4rem; }
+  .label { font-size: 13px; color: var(--dim); margin-bottom: .3rem; min-height: 1.2em; }
+  .time { font-size: 76px; font-weight: 300; letter-spacing: -2px; color: #fff; font-variant-numeric: tabular-nums; line-height: 1; }
+  .bar { height: 3px; background: var(--card-2); border-radius: 2px; margin-bottom: 1.6rem; overflow: hidden; }
+  .bar > div { height: 100%; border-radius: 2px; background: var(--fill); transition: width .25s linear; }
+
+  .controls { display: flex; align-items: center; justify-content: center; gap: 12px; }
+  .main { padding: 13px 0; flex: 1; max-width: 200px; font-size: 15px; font-weight: 500; border: none; border-radius: 11px; cursor: pointer; background: var(--accent); color: #fff; transition: background .15s; }
+  .main:hover { background: var(--accent-hover); }
+  .icon { width: 44px; height: 44px; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; background: transparent; color: var(--dim); font-size: 18px; display: flex; align-items: center; justify-content: center; transition: background .15s, color .15s; }
+  .icon:hover { background: var(--card-2); color: #d0ead9; }
+  .icon[hidden] { display: none; }
+  .end { margin-top: 14px; padding: 9px 18px; font-size: 13px; border: 1px solid var(--line); border-radius: 9px; cursor: pointer; background: transparent; color: var(--dim); transition: background .15s, color .15s; }
+  .end:hover { background: var(--card-2); color: #d0ead9; }
+  .end[hidden] { display: none; }
+
+  .thought { display: flex; gap: 8px; margin-top: 1.4rem; }
+  .thought input { flex: 1; background: var(--card-2); border: 1px solid var(--line-soft); border-radius: 9px; color: var(--text); font-size: 14px; padding: 10px 12px; outline: none; }
+  .thought input::placeholder { color: var(--mute); }
+  .thought input:focus { border-color: var(--accent); }
+  .thought button { padding: 0 14px; font-size: 14px; border: 1px solid var(--line); border-radius: 9px; cursor: pointer; background: transparent; color: var(--dim); }
+  .thought button:hover { background: var(--card-2); color: #d0ead9; }
+
+  .today { margin-top: 1.4rem; padding-top: 1.1rem; border-top: 1px solid var(--line-soft); font-size: 13px; color: var(--mute); }
+  .foot { margin-top: .8rem; display: flex; justify-content: center; gap: 4px; }
+  .foot button { background: none; border: none; font-size: 12px; color: #4b7d5f; cursor: pointer; padding: 6px 8px; }
+  .foot button:hover { color: var(--dim); }
+
+  /* overlays */
+  .ov { display: none; position: fixed; inset: 0; background: rgba(18,23,20,.94); z-index: 90; align-items: center; justify-content: center; padding: 1.5rem 1rem; }
+  .ov.open { display: flex; }
+  .ov-card { width: 100%; max-width: 400px; max-height: 82vh; background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 1.4rem 1.3rem; display: flex; flex-direction: column; }
+  .ov h3 { font-size: 16px; font-weight: 500; margin-bottom: .4rem; color: #fff; }
+  .ov .sub { font-size: 13px; color: var(--mute); margin-bottom: 1rem; line-height: 1.45; }
+  .ov ul { list-style: none; overflow-y: auto; flex: 1; margin-bottom: 1rem; }
+  .ov li { padding: 10px 0; border-bottom: 1px solid var(--line-soft); font-size: 15px; line-height: 1.45; display: flex; gap: 10px; justify-content: space-between; align-items: flex-start; }
+  .ov li span { flex: 1; word-break: break-word; }
+  .ov li small { color: var(--mute); font-size: 12px; white-space: nowrap; }
+  .ov li button { background: none; border: none; color: var(--mute); cursor: pointer; font-size: 16px; padding: 0 2px; }
+  .ov li button:hover { color: #e6efe9; }
+  .ov-actions { display: flex; gap: 10px; }
+  .ov-actions button { flex: 1; padding: 11px; font-size: 14px; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; background: transparent; color: var(--dim); }
+  .ov-actions button:hover { background: var(--card-2); color: #d0ead9; }
+
+  /* check-in */
+  .ci { display: none; position: fixed; inset: 0; background: var(--bg); z-index: 100; align-items: center; justify-content: center; padding: 1.5rem 1rem; overflow-y: auto; }
+  .ci.open { display: flex; }
+  .ci-card { width: 100%; max-width: 400px; text-align: center; }
+  .dots { display: flex; gap: 6px; justify-content: center; margin-bottom: 2.2rem; }
+  .dots i { width: 22px; height: 3px; border-radius: 2px; background: var(--line-soft); }
+  .dots i.on { background: var(--fill); }
+  .ci h2 { font-size: 22px; font-weight: 500; line-height: 1.3; margin-bottom: .5rem; color: #fff; }
+  .ci p { font-size: 14px; color: var(--dim); line-height: 1.5; margin-bottom: 1.8rem; }
+  .ci p button.link { background: none; border: none; color: var(--fill); cursor: pointer; font-size: 14px; padding: 0; text-decoration: underline; }
+  .opts { display: flex; flex-direction: column; gap: 10px; margin-bottom: 1.4rem; }
+  .opt { padding: 15px; font-size: 16px; font-weight: 500; border: 1px solid var(--line); border-radius: 12px; cursor: pointer; background: var(--card); color: var(--text); transition: background .12s, border-color .12s; }
+  .opt:hover { background: var(--line-soft); border-color: var(--accent); }
+  .opt.quiet { background: transparent; color: var(--dim); font-weight: 400; }
+  .scale { display: flex; gap: 10px; justify-content: center; margin-bottom: 1.6rem; }
+  .scale .opt { width: 56px; height: 56px; padding: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 17px; }
+  .scale-hint { display: flex; justify-content: space-between; max-width: 320px; margin: -1rem auto 1.6rem; font-size: 12px; color: var(--mute); }
+  .ci textarea, .ci input[type=text] { width: 100%; background: var(--card); border: 1px solid var(--line); border-radius: 12px; color: var(--text); font-size: 15px; padding: 12px; outline: none; margin-bottom: 1rem; }
+  .ci textarea { height: 110px; resize: none; }
+  .ci textarea::placeholder, .ci input::placeholder { color: var(--mute); }
+  .ci textarea:focus, .ci input:focus { border-color: var(--accent); }
+  .newplace { display: flex; gap: 8px; margin-bottom: 1.4rem; }
+  .newplace input { margin-bottom: 0 !important; }
+  .newplace button { padding: 0 16px; font-size: 15px; border: none; border-radius: 12px; cursor: pointer; background: var(--accent); color: #fff; }
+  .primary { width: 100%; padding: 15px; font-size: 16px; font-weight: 500; border: none; border-radius: 12px; cursor: pointer; background: var(--accent); color: #fff; margin-bottom: 1rem; transition: background .15s; }
+  .primary:hover { background: var(--accent-hover); }
+  .skip { background: none; border: none; font-size: 14px; color: var(--mute); cursor: pointer; padding: 8px 14px; }
+  .skip:hover { color: var(--dim); }
+
+  .toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(20px); background: #223a2e; color: #d0ead9; border: 1px solid var(--line); padding: 11px 18px; border-radius: 10px; font-size: 14px; opacity: 0; transition: opacity .25s, transform .25s; pointer-events: none; z-index: 200; max-width: 90vw; text-align: center; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .flash { position: fixed; inset: 0; background: #fff; z-index: 300; pointer-events: none; opacity: 0; }
+  .flash.on { opacity: 1; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="card" id="card">
+    <div class="tabs">
+      <button class="tab active" id="tab-focus" onclick="switchMode('focus')">Focus</button>
+      <button class="tab" id="tab-break" onclick="switchMode('break')">Break</button>
+    </div>
+    <div class="durations" id="dur-focus">
+      <button class="dur active" onclick="setDuration(25, this)">25</button>
+      <button class="dur" onclick="setDuration(30, this)">30</button>
+      <button class="dur" onclick="setDuration(45, this)">45</button>
+      <button class="dur" onclick="setDuration(60, this)">60</button>
+    </div>
+    <div class="durations" id="dur-break" style="display:none">
+      <button class="dur active" onclick="setDuration(5, this)">5</button>
+      <button class="dur" onclick="setDuration(10, this)">10</button>
+      <button class="dur" onclick="setDuration(15, this)">15</button>
+    </div>
+
+    <div class="display">
+      <div class="label" id="label">Focus</div>
+      <div class="time" id="time">25:00</div>
+    </div>
+    <div class="bar"><div id="bar" style="width:100%"></div></div>
+
+    <div class="controls">
+      <button class="icon" onclick="resetTimer()" title="Reset">↺</button>
+      <button class="main" id="main" onclick="toggleTimer()">Start</button>
+      <button class="icon" id="skip-break" onclick="skipBreak()" title="Skip break" hidden>→</button>
+    </div>
+    <button class="end" id="end" onclick="endEarly()" hidden>End session and log it</button>
+
+    <form class="thought" onsubmit="addThought(event)">
+      <input id="thought-in" placeholder="Park a thought, keep going" autocomplete="off" maxlength="300">
+      <button type="submit">Park</button>
+    </form>
+
+    <div class="today" id="today">Nothing logged yet today</div>
+    <div class="foot">
+      <button onclick="openThoughts()" id="thoughts-link">Thoughts</button>
+      <button onclick="openPlaces()" id="places-link">Places</button>
+      <button onclick="resetToken()">Token</button>
+    </div>
+  </div>
+</div>
+
+<div class="ov" id="th" onclick="if(event.target===this)closeOv('th')">
+  <div class="ov-card">
+    <h3>Parked thoughts</h3>
+    <ul id="th-list"></ul>
+    <div class="ov-actions"><button onclick="clearThoughts()">Clear all</button><button onclick="closeOv('th')">Close</button></div>
+  </div>
+</div>
+
+<div class="ov" id="pl" onclick="if(event.target===this)closeOv('pl')">
+  <div class="ov-card">
+    <h3>Known places</h3>
+    <div class="sub">Coordinates stay on this phone only. Notion just gets the name.</div>
+    <ul id="pl-list"></ul>
+    <div class="ov-actions"><button onclick="clearPlaces()">Forget all</button><button onclick="closeOv('pl')">Close</button></div>
+  </div>
+</div>
+
+<div class="ci" id="ci"><div class="ci-card" id="ci-card"></div></div>
+<div class="toast" id="toast"></div>
+<div class="flash" id="flash"></div>
+
+<script>
+/* ---------- config ---------- */
+const GITHUB_USER = "Alexfionn";
+const GITHUB_REPO = "focus-log";
+const MIN_LOG_SECONDS = 180;
+const PLACE_RADIUS_M = 100;        // "same place" if within this distance of a saved point
+const GEO_MAX_ACCURACY_M = 300;    // worse than this and we ask instead of guessing
+const MAX_POINTS_PER_PLACE = 8;
+const MOVING_PLACE = "Train";      // tagged, never saved with coordinates
+
+const FOCUS_DEFAULT = 25;
+const K = { queue: "focuslog-queue", token: "focuslog-gh-token", today: "focuslog-today",
+            session: "focuslog-session", thoughts: "focuslog-thoughts", places: "focuslog-places" };
+
+/* ---------- timer state ---------- */
+let mode = "focus", total = FOCUS_DEFAULT * 60;
+let accumulated = 0, runStart = null, running = false, firstStart = null;
+let geo = null;                    // {lat, lon, acc} or {error} — captured at session start, never sent
+let ticker = null, audioCtx = null, wakeLock = null;
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+function elapsed() { return accumulated + (running ? (Date.now() - runStart) / 1000 : 0); }
+function remaining() { return Math.max(0, total - elapsed()); }
+function fmt(s) { s = Math.ceil(s); return String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0"); }
+
+function render() {
+  $("time").textContent = fmt(remaining());
+  $("bar").style.width = (remaining() / total * 100) + "%";
+  $("main").textContent = running ? "Pause" : (accumulated > 0 ? "Resume" : "Start");
+  const started = accumulated > 0 || running;
+  $("end").hidden = !(mode === "focus" && started);
+  $("skip-break").hidden = mode !== "break";
+  renderLabel();
+}
+function renderLabel() {
+  if (mode !== "focus") { $("label").textContent = "Break"; return; }
+  const p = geo && !geo.error ? matchPlace(geo) : null;
+  $("label").textContent = p ? "Focus at " + p : "Focus";
+}
+
+function startTimer() {
+  if (running) return;
+  if (!firstStart) { firstStart = new Date(); if (mode === "focus") captureLocation(); }
+  runStart = Date.now(); running = true;
+  ticker = setInterval(tick, 250);
+  ensureAudio(); requestWake(); persist(); render();
+}
+function pauseTimer() {
+  if (!running) return;
+  accumulated += (Date.now() - runStart) / 1000; running = false;
+  clearInterval(ticker); releaseWake(); persist(); render();
+}
+function toggleTimer() { running ? pauseTimer() : startTimer(); }
+function stopAll() {
+  if (running) accumulated += (Date.now() - runStart) / 1000;
+  running = false; clearInterval(ticker); releaseWake();
+}
+function clearSession() {
+  accumulated = 0; runStart = null; firstStart = null; running = false; geo = null;
+  clearInterval(ticker); releaseWake(); localStorage.removeItem(K.session);
+}
+function resetTimer() { clearSession(); render(); }
+function tick() { render(); if (remaining() <= 0) complete(); }
+
+function complete() {
+  stopAll(); notify();
+  if (mode === "focus") openCheckin(total, true);
+  else { clearSession(); switchMode("focus"); toast("Break over"); }
+}
+function endEarly() {
+  const secs = Math.round(elapsed());
+  stopAll();
+  if (secs < MIN_LOG_SECONDS) { clearSession(); render(); toast("Under 3 minutes, not logged"); return; }
+  openCheckin(secs, false);
+}
+function skipBreak() { clearSession(); switchMode("focus"); }
+function setDuration(min, btn) {
+  if (accumulated > 0 || running) clearSession();
+  total = min * 60;
+  btn.parentElement.querySelectorAll(".dur").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  render();
+}
+function switchMode(m) {
+  if (m === mode) return;
+  clearSession(); mode = m;
+  $("tab-focus").classList.toggle("active", m === "focus");
+  $("tab-break").classList.toggle("active", m === "break");
+  $("dur-focus").style.display = m === "focus" ? "" : "none";
+  $("dur-break").style.display = m === "break" ? "" : "none";
+  total = parseInt(document.querySelector("#dur-" + m + " .dur.active").textContent, 10) * 60;
+  render();
+}
+
+/* persist a running session across reloads (geo included, still device-only) */
+function persist() {
+  localStorage.setItem(K.session, JSON.stringify({ mode, total, accumulated, runStart, running, geo, firstStart: firstStart ? firstStart.getTime() : null }));
+}
+function restore() {
+  const raw = localStorage.getItem(K.session);
+  if (!raw) return;
+  try {
+    const s = JSON.parse(raw);
+    if (s.mode !== mode) switchMode(s.mode);
+    total = s.total; accumulated = s.accumulated; geo = s.geo || null;
+    firstStart = s.firstStart ? new Date(s.firstStart) : null;
+    const btn = [...document.querySelectorAll("#dur-" + mode + " .dur")].find(b => parseInt(b.textContent, 10) * 60 === total);
+    if (btn) { btn.parentElement.querySelectorAll(".dur").forEach(b => b.classList.remove("active")); btn.classList.add("active"); }
+    if (s.running) {
+      runStart = s.runStart; running = true;
+      if (elapsed() >= total) { running = false; accumulated = total; complete(); return; }
+      ticker = setInterval(tick, 250); requestWake();
+    }
+    render();
+  } catch (e) { localStorage.removeItem(K.session); }
+}
+
+/* ---------- location: everything here stays on the device ---------- */
+function captureLocation() {
+  geo = null;
+  if (!("geolocation" in navigator)) { geo = { error: "unsupported" }; return; }
+  navigator.geolocation.getCurrentPosition(
+    pos => { geo = { lat: pos.coords.latitude, lon: pos.coords.longitude, acc: pos.coords.accuracy || 9999 }; persist(); renderLabel(); },
+    err => { geo = { error: err.code }; persist(); },
+    { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 }
+  );
+}
+function distanceM(a, b) {
+  const R = 6371000, toRad = x => x * Math.PI / 180;
+  const dLat = toRad(b.lat - a.lat), dLon = toRad(b.lon - a.lon);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+function readPlaces() { try { return JSON.parse(localStorage.getItem(K.places)) || []; } catch (e) { return []; } }
+function writePlaces(p) { localStorage.setItem(K.places, JSON.stringify(p)); }
+function matchPlace(g) {
+  if (!g || g.error || g.acc > GEO_MAX_ACCURACY_M) return null;
+  let best = null, bestD = Infinity;
+  for (const p of readPlaces()) for (const pt of p.points) {
+    const d = distanceM(g, pt);
+    if (d < bestD) { bestD = d; best = p.name; }
+  }
+  return bestD <= PLACE_RADIUS_M ? best : null;
+}
+function cleanName(s) { return String(s || "").replace(/\s+/g, " ").trim().slice(0, 40); }
+function rememberPlace(name, g) {
+  name = cleanName(name);
+  if (!name || name === MOVING_PLACE || !g || g.error || g.acc > GEO_MAX_ACCURACY_M) return;
+  const places = readPlaces();
+  let p = places.find(x => x.name.toLowerCase() === name.toLowerCase());
+  if (!p) { p = { name, points: [] }; places.push(p); }
+  if (!p.points.some(pt => distanceM(g, pt) < 25)) {
+    p.points.push({ lat: +g.lat.toFixed(5), lon: +g.lon.toFixed(5) });
+    if (p.points.length > MAX_POINTS_PER_PLACE) p.points.shift();
+  }
+  p.used = Date.now();
+  writePlaces(places);
+}
+function knownNames() { return readPlaces().sort((a, b) => (b.used || 0) - (a.used || 0)).map(p => p.name); }
+function openPlaces() {
+  const list = $("pl-list"), places = readPlaces();
+  list.innerHTML = places.map((p, i) =>
+    `<li><span>${esc(p.name)}</span><small>${p.points.length} ${p.points.length === 1 ? "point" : "points"}</small><button onclick="removePlace(${i})" title="Forget">×</button></li>`
+  ).join("") || `<li><span style="color:var(--mute)">No places yet. You'll be asked after your first session somewhere new.</span></li>`;
+  $("pl").classList.add("open");
+}
+function removePlace(i) { const p = readPlaces(); p.splice(i, 1); writePlaces(p); openPlaces(); renderLabel(); }
+function clearPlaces() { if (!readPlaces().length || confirm("Forget all saved places on this phone?")) { writePlaces([]); closeOv("pl"); renderLabel(); } }
+function closeOv(id) { $(id).classList.remove("open"); }
+
+/* ---------- notifications ---------- */
+function ensureAudio() { try { audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)(); if (audioCtx.state === "suspended") audioCtx.resume(); } catch (e) {} }
+function notify() {
+  try {
+    ensureAudio();
+    const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.frequency.value = 660; osc.type = "sine";
+    gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1);
+    osc.start(); osc.stop(audioCtx.currentTime + 1);
+  } catch (e) {}
+  if (navigator.vibrate) navigator.vibrate([180, 90, 180]);
+  const card = $("card"); card.classList.add("pulse"); setTimeout(() => card.classList.remove("pulse"), 1200);
+  flashScreen(4);
+  let i = 0; const t = setInterval(() => { document.title = i % 2 ? "Focus Log" : "Done"; if (++i > 6) { clearInterval(t); document.title = "Focus Log"; } }, 600);
+}
+function flashScreen(times) {
+  const f = $("flash"); let n = 0;
+  const step = () => { f.classList.toggle("on"); if (++n < times * 2) setTimeout(step, 300); else f.classList.remove("on"); };
+  step();
+}
+async function requestWake() { try { if ("wakeLock" in navigator) wakeLock = await navigator.wakeLock.request("screen"); } catch (e) {} }
+function releaseWake() { try { wakeLock && wakeLock.release(); } catch (e) {} wakeLock = null; }
+document.addEventListener("visibilitychange", () => { if (!document.hidden) { render(); if (running) requestWake(); } });
+
+/* ---------- check-in ---------- */
+const PLACE_Q = { key: "place", type: "place", q: "Where are you?" };
+const QUESTIONS = [
+  { key: "focus",       q: "How was your focus?",      type: "choice", opts: [["good", "Good"], ["mixed", "Mixed"], ["distracted", "Distracted"]] },
+  { key: "energy",      q: "Energy right now?",        type: "scale" },
+  { key: "starting",    q: "Getting started was…",     type: "choice", opts: [["easy", "Easy"], ["okay", "Okay"], ["hard", "Hard"]] },
+  { key: "environment", q: "How was the environment?", type: "choice", opts: [["quiet", "Quiet"], ["okay", "Okay"], ["noisy", "Noisy"]] },
+  { key: "note",        q: "Anything worth noting?",   type: "text" },
+];
+let session = null, steps = [], step = 0, sessionGeo = null;
+
+function uuid() {
+  if (crypto.randomUUID) return crypto.randomUUID();
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === "x" ? r : (r & 3 | 8)).toString(16); });
+}
+function isoLocal(d) {
+  const p = n => String(n).padStart(2, "0");
+  const off = -d.getTimezoneOffset(), sign = off >= 0 ? "+" : "-", a = Math.abs(off);
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}${sign}${p(a / 60 | 0)}:${p(a % 60)}`;
+}
+
+function openCheckin(secs, completed) {
+  sessionGeo = geo;                       // kept separately; never part of the payload
+  session = {
+    id: uuid(),
+    start: isoLocal(firstStart || new Date(Date.now() - secs * 1000)),
+    minutes: Math.max(1, Math.round(secs / 60)),
+    completed,
+    tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
+  };
+  const auto = matchPlace(sessionGeo);
+  if (auto) session.place = auto;
+  steps = auto ? [...QUESTIONS] : [PLACE_Q, ...QUESTIONS];
+  step = 0;
+  $("ci").classList.add("open");
+  renderStep();
+}
+function askPlaceAnyway() { delete session.place; steps = [PLACE_Q, ...QUESTIONS]; step = 1; renderStep(); }
+
+function renderStep() {
+  const card = $("ci-card");
+  const dots = `<div class="dots">${steps.map((_, i) => `<i class="${i < step ? "on" : ""}"></i>`).join("")}</div>`;
+  if (step === 0) {
+    const where = session.place ? ` at ${esc(session.place)}` : "";
+    const fix = session.place ? ` <button class="link" onclick="askPlaceAnyway()">Not ${esc(session.place)}?</button>` : "";
+    card.innerHTML = `${dots}
+      <h2>${session.minutes} minutes done${where}.</h2>
+      <p>${session.completed ? "Full session." : "Ended early, still counts."} A few quick taps, then you're free.${fix}</p>
+      <button class="primary" onclick="next()">Continue</button>
+      <button class="skip" onclick="finishCheckin()">Skip all, just log the time</button>`;
+    return;
+  }
+  const q = steps[step - 1];
+  let body = "", skipLabel = "Skip this one";
+  if (q.type === "place") {
+    const known = knownNames().filter(n => n !== MOVING_PLACE).slice(0, 6);
+    const why = !sessionGeo ? "No location for this session." : sessionGeo.error ? "Location wasn't available." : sessionGeo.acc > GEO_MAX_ACCURACY_M ? "Location too rough to match." : "New spot, or too far from a saved one.";
+    body = `<div class="opts">
+        ${known.map(n => `<button class="opt" onclick="answerPlace(${JSON.stringify(n)}, true)">${esc(n)}</button>`).join("")}
+        <button class="opt quiet" onclick="answerPlace('${MOVING_PLACE}', false)">${MOVING_PLACE}</button>
+      </div>
+      <div class="newplace">
+        <input type="text" id="place-in" placeholder="New place, e.g. Home" maxlength="40" autocomplete="off">
+        <button onclick="answerPlace(document.getElementById('place-in').value, true)">Save</button>
+      </div>`;
+    card.innerHTML = `${dots}<h2>${q.q}</h2><p>${why} ${sessionGeo && !sessionGeo.error && sessionGeo.acc <= GEO_MAX_ACCURACY_M ? "Picking a name saves this spot on your phone." : "Nothing will be saved for this spot."}</p>${body}
+      <button class="skip" onclick="next()">${skipLabel}</button>`;
+    setTimeout(() => { const i = $("place-in"); i.addEventListener("keydown", e => { if (e.key === "Enter") answerPlace(i.value, true); }); }, 50);
+    return;
+  }
+  if (q.type === "choice") {
+    body = `<div class="opts">${q.opts.map(([v, l]) => `<button class="opt" onclick="answer('${q.key}','${v}')">${l}</button>`).join("")}</div>`;
+  } else if (q.type === "scale") {
+    body = `<div class="scale">${[1, 2, 3, 4, 5].map(n => `<button class="opt" onclick="answer('${q.key}',${n})">${n}</button>`).join("")}</div>
+            <div class="scale-hint"><span>drained</span><span>fresh</span></div>`;
+  } else {
+    body = `<textarea id="note" placeholder="Optional"></textarea>
+            <button class="primary" onclick="answer('note', document.getElementById('note').value.trim())">Save session</button>`;
+    skipLabel = "Save without a note";
+  }
+  card.innerHTML = `${dots}<h2>${q.q}</h2><p></p>${body}<button class="skip" onclick="next()">${skipLabel}</button>`;
+  if (q.type === "text") setTimeout(() => { const n = $("note"); n.focus(); n.addEventListener("keydown", e => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) answer("note", n.value.trim()); }); }, 50);
+}
+function answer(key, val) { if (val !== "" && val !== null) session[key] = val; next(); }
+function answerPlace(name, save) {
+  name = cleanName(name);
+  if (!name) { toast("Type a name first"); return; }
+  session.place = name;
+  if (save) rememberPlace(name, sessionGeo);
+  next();
+}
+function next() { step++; if (step > steps.length) finishCheckin(); else renderStep(); }
+
+function finishCheckin() {
+  const s = session; session = null; sessionGeo = null;
+  $("ci").classList.remove("open");
+  enqueue(s);                           // s contains no coordinates by construction
+  bumpToday(s.minutes);
+  clearSession();
+  if (s.completed) switchMode("break"); else render();
+  flushQueue();
+}
+
+/* ---------- parked thoughts (device only) ---------- */
+function readThoughts() { try { return JSON.parse(localStorage.getItem(K.thoughts)) || []; } catch (e) { return []; } }
+function writeThoughts(t) { localStorage.setItem(K.thoughts, JSON.stringify(t)); renderLinks(); }
+function addThought(e) {
+  e.preventDefault();
+  const inp = $("thought-in"), text = inp.value.trim();
+  if (!text) return;
+  const t = readThoughts(); t.push({ text, at: Date.now() }); writeThoughts(t);
+  inp.value = ""; inp.blur(); toast("Parked");
+}
+function openThoughts() {
+  const list = $("th-list"), t = readThoughts();
+  list.innerHTML = t.map((x, i) => {
+    const d = new Date(x.at), when = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+    return `<li><span>${esc(x.text)}</span><small>${when}</small><button onclick="removeThought(${i})" title="Remove">×</button></li>`;
+  }).join("") || `<li><span style="color:var(--mute)">Nothing parked.</span></li>`;
+  $("th").classList.add("open");
+}
+function removeThought(i) { const t = readThoughts(); t.splice(i, 1); writeThoughts(t); openThoughts(); }
+function clearThoughts() { if (!readThoughts().length || confirm("Clear all parked thoughts?")) { writeThoughts([]); closeOv("th"); } }
+function renderLinks() {
+  const n = readThoughts().length;
+  $("thoughts-link").textContent = n ? `Thoughts (${n})` : "Thoughts";
+}
+
+/* ---------- today ---------- */
+function todayKey() { const d = new Date(); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; }
+function readToday() { try { const t = JSON.parse(localStorage.getItem(K.today)); return t && t.date === todayKey() ? t : { date: todayKey(), sessions: 0, minutes: 0 }; } catch (e) { return { date: todayKey(), sessions: 0, minutes: 0 }; } }
+function bumpToday(min) { const t = readToday(); t.sessions++; t.minutes += min; localStorage.setItem(K.today, JSON.stringify(t)); renderToday(); }
+function renderToday() {
+  const t = readToday();
+  $("today").textContent = t.sessions === 0 ? "Nothing logged yet today" : `${t.sessions} ${t.sessions === 1 ? "session" : "sessions"}, ${t.minutes} min today`;
+}
+
+/* ---------- queue + delivery ---------- */
+function readQueue() { try { return JSON.parse(localStorage.getItem(K.queue)) || []; } catch (e) { return []; } }
+function writeQueue(q) { localStorage.setItem(K.queue, JSON.stringify(q)); }
+function enqueue(s) { const q = readQueue(); q.push(s); writeQueue(q); }
+function getToken() {
+  let t = localStorage.getItem(K.token);
+  if (!t) { t = prompt("Paste your GitHub token (stored only on this device):"); if (t) { t = t.trim(); localStorage.setItem(K.token, t); } }
+  return t;
+}
+function resetToken() { if (confirm("Remove the saved GitHub token from this device?")) { localStorage.removeItem(K.token); toast("Token removed"); } }
+
+let flushing = false;
+async function flushQueue() {
+  if (flushing) return;
+  let q = readQueue();
+  if (q.length === 0) return;
+  if (!navigator.onLine) { toast(`Offline, ${q.length} queued`); return; }
+  const token = getToken();
+  if (!token) { toast(`No token, ${q.length} queued`); return; }
+  flushing = true; let sent = 0;
+  try {
+    while (q.length) {
+      const r = await fetch(`https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/dispatches`, {
+        method: "POST",
+        headers: { "Authorization": "Bearer " + token, "Accept": "application/vnd.github+json", "Content-Type": "application/json" },
+        body: JSON.stringify({ event_type: "log_session", client_payload: q[0] })
+      });
+      if (r.status === 204) { q.shift(); writeQueue(q); sent++; continue; }
+      if (r.status === 401 || r.status === 403) { localStorage.removeItem(K.token); toast("Token rejected, saved for retry"); break; }
+      if (r.status === 404) { toast("Repo not found, check config"); break; }
+      let detail = "";
+      try { detail = (await r.text()).slice(0, 180); } catch (e) {}
+      toast(`GitHub ${r.status}: ${detail || "no detail"}`); break;
+    }
+  } catch (e) { toast("Network error, saved for retry"); }
+  flushing = false;
+  if (sent) toast(sent === 1 ? "Logged to Notion" : `Logged ${sent} sessions`);
+}
+window.addEventListener("online", flushQueue);
+
+/* ---------- toast ---------- */
+let toastT = null;
+function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("show"), 2600); }
+
+/* ---------- boot ---------- */
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") { closeOv("th"); closeOv("pl"); return; }
+  if ($("ci").classList.contains("open") || $("th").classList.contains("open") || $("pl").classList.contains("open")) return;
+  if (e.target.tagName === "TEXTAREA" || e.target.tagName === "INPUT") return;
+  if (e.code === "Space") { e.preventDefault(); toggleTimer(); }
+});
+renderToday(); renderLinks(); restore(); render(); flushQueue();
+</script>
+</body>
+</html>
