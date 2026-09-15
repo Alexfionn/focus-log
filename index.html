@@ -408,7 +408,6 @@ function openCheckin(secs, completed) {
     start: isoLocal(firstStart || new Date(Date.now() - secs * 1000)),
     minutes: Math.max(1, Math.round(secs / 60)),
     completed,
-    tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
   };
   const auto = matchPlace(sessionGeo);
   if (auto) session.place = auto;
