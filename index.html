@@ -520,6 +520,13 @@ function renderToday() {
 function readQueue() { try { return JSON.parse(localStorage.getItem(K.queue)) || []; } catch (e) { return []; } }
 function writeQueue(q) { localStorage.setItem(K.queue, JSON.stringify(q)); }
 function enqueue(s) { const q = readQueue(); q.push(s); writeQueue(q); }
+/* Older builds added a tz field, pushing the payload over GitHub's 10-key limit. Strip it once. */
+function migrateQueue() {
+  const q = readQueue();
+  let changed = false;
+  for (const item of q) if ("tz" in item) { delete item.tz; changed = true; }
+  if (changed) writeQueue(q);
+}
 function getToken() {
   let t = localStorage.getItem(K.token);
   if (!t) { t = prompt("Paste your GitHub token (stored only on this device):"); if (t) { t = t.trim(); localStorage.setItem(K.token, t); } }
@@ -567,7 +574,7 @@ document.addEventListener("keydown", e => {
   if (e.target.tagName === "TEXTAREA" || e.target.tagName === "INPUT") return;
   if (e.code === "Space") { e.preventDefault(); toggleTimer(); }
 });
-renderToday(); renderLinks(); restore(); render(); flushQueue();
+migrateQueue(); renderToday(); renderLinks(); restore(); render(); flushQueue();
 </script>
 </body>
 </html>
