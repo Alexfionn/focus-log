@@ -232,7 +232,7 @@ Tuesday:   08:00–09:45  Nachhaltigkeit und Gesellschaft
 Wednesday: 08:00–09:45  Evolutionäre Anthropologie
            10:15–12:00  Concepts in Plant Biology VL
 
-Thursday:  13:00–17:00  Programming in Biology (Gruppe B)
+Thursday:  13:00–17:00  Programming in Biology (SELF STUDY!!!)
 
 Friday:    10:15–12:00  Concepts in Plant Biology VL
            14:00–15:45  Biogeochemische Kreisläufe und Globaler Wandel
